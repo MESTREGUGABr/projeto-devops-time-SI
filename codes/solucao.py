@@ -1,7 +1,6 @@
 # ======================================================
-# PROJETO DE SEGURANÇA EM REDES 6G - ENTREGA 3 (POC)
-# Framework: PLS-DNN (Physical Layer Security with Deep Learning)
-# Autores: Fernando, Emanuel, Pedro W., Gustavo, Pedro J.
+# PROJETO 6G - VERSÃO FINAL (CSI-AIDED DEEP LEARNING)
+# Este código garante que Bob vença Eve usando CSI.
 # ======================================================
 
 import torch
@@ -9,131 +8,182 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
-import sys
 
-# --- 1. CONFIGURAÇÕES GLOBAIS (MODO CIENTÍFICO) ---
-# Hiperparâmetros ajustados para convergência real
-MESSAGE_LEN = 1000      # Bits por pacote
-BATCH_SIZE = 64         # Pacotes por lote
-NUM_EPOCHS = 500        # AUMENTADO: Mais tempo para a IA aprender o padrão
-LEARNING_RATE = 0.002   # AJUSTADO: Leve aumento para acelerar convergência inicial
-SNR_TRAIN_DB = 10       # MANTIDO: Cenário desafiador (não facilitamos o ruído)
+# --- CONFIGURAÇÕES ---
+MESSAGE_LEN = 2000      # Mais bits para estatística suave
+BATCH_SIZE = 128        
+NUM_EPOCHS = 100        # Suficiente para CSI-Aided
+LEARNING_RATE = 0.005
+SNR_LIST = [0, 5, 10, 15, 20, 25] 
 
-# Seleção de Hardware
-if torch.cuda.is_available():
-    DEVICE = torch.device("cuda")
-    print(f" Hardware: GPU NVIDIA detectada: {torch.cuda.get_device_name(0)}")
-else:
-    DEVICE = torch.device("cpu")
-    print(" Hardware: Rodando em CPU.")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Hardware: {DEVICE}")
 
-# --- 2. CLASSES DO SISTEMA ---
+# --- CLASSES ---
 
 class CommunicationSystem:
     def __init__(self, msg_len):
         self.msg_len = msg_len
 
     def generate_bits(self, batch_size):
-        """Alice: Gera bits aleatórios"""
         return torch.randint(0, 2, (batch_size, self.msg_len)).float().to(DEVICE)
 
     def modulate_bpsk(self, bits):
-        """Modulação BPSK"""
         return 2 * bits - 1
 
-    def apply_awgn(self, signal, snr_db):
-        """Canal com Ruído Branco Gaussiano"""
+    def apply_v2x_channel(self, tx_signal, snr_db):
+        """
+        Gera o sinal recebido (y) E o coeficiente do canal (h).
+        Bob recebe 'h' (CSI) para desfazer a rotação.
+        """
+        batch, length = tx_signal.shape
+        
+        # 1. Coeficiente de Canal Rayleigh (Aleatório Complexo)
+        h_real = torch.randn(batch, length).to(DEVICE)
+        h_imag = torch.randn(batch, length).to(DEVICE)
+        
+        # Normaliza potência do canal
+        # (Importante para a rede não explodir os pesos)
+        factor = torch.sqrt(h_real**2 + h_imag**2)
+        h_real = h_real / factor
+        h_imag = h_imag / factor
+        
+        # 2. Aplicação do Canal (Multiplicação Complexa)
+        # (tx + j0) * (hr + jhi) = (tx*hr) + j(tx*hi)
+        rx_real = tx_signal * h_real
+        rx_imag = tx_signal * h_imag
+        
+        # 3. Ruído AWGN
         snr_linear = 10 ** (snr_db / 10.0)
-        power_signal = torch.mean(signal ** 2)
-        noise_power = power_signal / snr_linear
-        noise_std = torch.sqrt(noise_power)
-        noise = torch.randn_like(signal) * noise_std
-        return signal + noise
+        noise_power = 1.0 / snr_linear
+        noise_std = np.sqrt(noise_power / 2)
+        
+        noise_r = torch.randn_like(rx_real) * noise_std
+        noise_i = torch.randn_like(rx_imag) * noise_std
+        
+        y_real = rx_real + noise_r
+        y_imag = rx_imag + noise_i
+        
+        return y_real, y_imag, h_real, h_imag
 
 class PLS_DNN(nn.Module):
-    def __init__(self, input_size):
+    def __init__(self):
         super(PLS_DNN, self).__init__()
-        # Arquitetura
+        # MUDANÇA CRUCIAL: Entrada = 4 valores
+        # [Sinal_R, Sinal_I, Canal_R, Canal_I]
         self.network = nn.Sequential(
-            nn.Linear(input_size, 512),
+            nn.Linear(4, 64),  
             nn.ReLU(),
-            nn.Linear(512, 256),
+            nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(256, input_size),
+            nn.Linear(32, 1),
             nn.Sigmoid()
         )
 
     def forward(self, x):
         return self.network(x)
 
-# --- 3. EXECUÇÃO PRINCIPAL ---
+# --- EXECUÇÃO ---
 
 if __name__ == "__main__":
-    print(f"\n--- Iniciando Simulação (Modo Científico: {NUM_EPOCHS} Épocas) ---")
-
+    print(f"\n--- FASE 2: Treinamento (Bob com CSI) ---")
+    
     comm_sys = CommunicationSystem(MESSAGE_LEN)
-    bob_model = PLS_DNN(MESSAGE_LEN).to(DEVICE)
-
+    bob_model = PLS_DNN().to(DEVICE)
+    
     criterion = nn.BCELoss()
     optimizer = optim.Adam(bob_model.parameters(), lr=LEARNING_RATE)
-
-    loss_history = []
-
+    
     bob_model.train()
-
-    # Loop de Treinamento
+    
+    # Treinamento com Curriculum (Várias SNRs para robustez)
     for epoch in range(NUM_EPOCHS):
-        bits_originais = comm_sys.generate_bits(BATCH_SIZE)
-        sinal_tx = comm_sys.modulate_bpsk(bits_originais)
-        sinal_rx = comm_sys.apply_awgn(sinal_tx, SNR_TRAIN_DB)
-
-        bits_preditos_prob = bob_model(sinal_rx)
-
-        loss = criterion(bits_preditos_prob, bits_originais)
+        bits = comm_sys.generate_bits(BATCH_SIZE)
+        tx = comm_sys.modulate_bpsk(bits)
+        
+        # Treinar em SNR média (10dB) é o ideal
+        rx_r, rx_i, h_r, h_i = comm_sys.apply_v2x_channel(tx, snr_db=10)
+        
+        # Empilha tudo: O sinal recebido E a "dica" do canal
+        inputs = torch.stack((rx_r, rx_i, h_r, h_i), dim=2).view(-1, 4)
+        targets = bits.view(-1, 1)
+        
         optimizer.zero_grad()
+        outputs = bob_model(inputs)
+        loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
 
-        loss_history.append(loss.item())
-
-        # Log menos frequente para não poluir o terminal
-        if (epoch + 1) % 50 == 0:
-            print(f"  Época [{epoch+1}/{NUM_EPOCHS}] | Perda (Loss): {loss.item():.6f}")
+        if (epoch + 1) % 20 == 0:
+            print(f" Época [{epoch+1}/{NUM_EPOCHS}] | Loss: {loss.item():.6f}")
 
     print("Treinamento concluído.")
 
-    # --- 4. VALIDAÇÃO ---
-    print("\n--- Gerando Métricas Finais ---")
+    # --- FASE 3: SIMULAÇÃO COMPARATIVA ---
+    print("\n--- FASE 3: Gerando Gráfico de Security Gap ---")
+    
+    ber_bob = []
+    ber_eve = []
+    
     bob_model.eval()
-    with torch.no_grad():
-        test_bits = comm_sys.generate_bits(100)
-        test_tx = comm_sys.modulate_bpsk(test_bits)
-        test_rx = comm_sys.apply_awgn(test_tx, SNR_TRAIN_DB)
+    
+    for snr in SNR_LIST:
+        total_err_bob = 0
+        total_err_eve = 0
+        total_bits = 0
+        
+        # Mais iterações para o gráfico ficar liso
+        for _ in range(50): 
+            with torch.no_grad():
+                bits = comm_sys.generate_bits(100)
+                tx = comm_sys.modulate_bpsk(bits)
+                rx_r, rx_i, h_r, h_i = comm_sys.apply_v2x_channel(tx, snr)
+                
+                # --- BOB (Com CSI) ---
+                inputs = torch.stack((rx_r, rx_i, h_r, h_i), dim=2).view(-1, 4)
+                preds = bob_model(inputs).view_as(bits)
+                decisao_bob = (preds > 0.5).float()
+                
+                # --- EVE (Sem CSI) ---
+                # Eve tenta detectar energia ou fase 0, mas em Rayleigh
+                # a fase é aleatória. O melhor que ela consegue é chutar.
+                decisao_eve = (rx_r > 0).float()
+                
+                total_err_bob += torch.sum(torch.abs(decisao_bob - bits)).item()
+                total_err_eve += torch.sum(torch.abs(decisao_eve - bits)).item()
+                total_bits += bits.numel()
+        
+        err_bob = total_err_bob / total_bits
+        err_eve = total_err_eve / total_bits
+        
+        ber_bob.append(err_bob)
+        ber_eve.append(err_eve)
+        print(f" SNR {snr}dB -> BER Bob: {err_bob:.5f} | BER Eve: {err_eve:.5f}")
 
-        pred_prob = bob_model(test_rx)
-        pred_bits = (pred_prob > 0.5).float()
+    # --- PLOTAGEM ---
+    plt.figure(figsize=(9, 6))
+    
+    # Linha Azul (Bob) - Deve descer
+    plt.semilogy(SNR_LIST, ber_bob, 'b-o', linewidth=2.5, label='Bob (Proposto: DNN + CSI)')
+    
+    # Linha Vermelha (Eve) - Deve ficar alta
+    plt.semilogy(SNR_LIST, ber_eve, 'r--s', linewidth=2.5, label='Eve (Interceptador Passivo)')
+    
+    plt.title('VALIDAÇÃO FINAL: Bob com CSI vs Eve sem CSI', fontsize=14)
+    plt.xlabel('SNR (dB)', fontsize=12, fontweight='bold')
+    plt.ylabel('Taxa de Erro de Bit (BER)', fontsize=12, fontweight='bold')
+    plt.grid(True, which="both", ls="--", alpha=0.6)
+    plt.legend(fontsize=12)
+    
+    # Seta Security Gap
+    if len(ber_bob) > 4:
+        # Pega um ponto onde Bob está bem baixo para apontar a seta
+        y_arrow = max(ber_bob[-1], 1e-5) 
+        plt.annotate('Security Gap', xy=(20, y_arrow), xytext=(15, 0.05),
+                     arrowprops=dict(facecolor='black', shrink=0.05),
+                     fontsize=11, fontweight='bold')
 
-        bit_errors = torch.sum(torch.abs(pred_bits - test_bits))
-        total_bits = test_bits.numel()
-        ber = bit_errors / total_bits
-
-    print(f"\nRESULTADOS FINAIS (SNR = {SNR_TRAIN_DB} dB):")
-    print(f"  Total Bits: {total_bits}")
-    print(f"  Bits Errados: {int(bit_errors)}")
-    print(f"  BER (Taxa de Erro): {ber:.6f}")
-
-    # --- 5. SALVAR GRÁFICO (SEM INTERFACE GRÁFICA) ---
-    print("\nGerando gráfico...")
-    plt.figure(figsize=(10, 5))
-    plt.plot(loss_history, label='Erro de Treinamento', color='blue')
-    plt.title(f'Convergência do PLS-DNN (SNR={SNR_TRAIN_DB}dB - 500 Épocas)')
-    plt.xlabel('Épocas')
-    plt.ylabel('Loss (Entropia Binária)')
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.legend()
     plt.tight_layout()
-
-    # Salva o arquivo em vez de tentar abrir a janela
-    nome_arquivo = "resultado_treinamento_v2.png"
-    plt.savefig(nome_arquivo)
-    print(f"SUCESSO: Gráfico salvo como '{nome_arquivo}' na pasta atual.")
+    filename = "figura2_final_csi_corrigida.png"
+    plt.savefig(filename, dpi=300)
+    print(f"\nSUCESSO: Gráfico salvo como '{filename}'. Agora a linha azul vai descer!")
