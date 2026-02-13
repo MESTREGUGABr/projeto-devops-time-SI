@@ -1,34 +1,52 @@
 # PLS-DNN: Segurança de Camada Física em Redes 6G com Deep Learning
 
-![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow)
+![Status](https://img.shields.io/badge/Status-Concluído-green)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Framework](https://img.shields.io/badge/Framework-PyTorch-EE4C2C)
+![GPLv3](https://img.shields.io/badge/License-GPLv3-yellow.svg)
 
 Repositório oficial do projeto da disciplina de **Segurança da Informação** (2025.2) da **Universidade Federal do Agreste de Pernambuco (UFAPE)**.
 
-## 📄 Sobre o Projeto
+## Sobre o Projeto
 
-Este projeto investiga a aplicação de **Deep Learning** para garantir a segurança na camada física (Physical Layer Security - PLS) em redes 6G.
+Este projeto consiste em uma investigação sobre a aplicação de Deep Learning para garantir a segurança na camada física (Physical Layer Security - PLS) em redes móveis de sexta geração (6G). Diferente da criptografia convencional, o sistema utiliza as características estocásticas do canal de comunicação para proteger os dados.
 
-O objetivo é validar a eficácia de uma **Rede Neural Profunda (DNN)** na decodificação de sinais em comparação com métodos tradicionais, focando especialmente na lacuna de pesquisa referente a cenários de alta mobilidade e canais não-estacionários.
+A simulação foca em canais com desvanecimento Rayleigh, modelando cenários de alta mobilidade onde o receptor legítimo utiliza a informação de estado do canal ($CSI$) para decodificar a mensagem. O objetivo central é demonstrar como uma Rede Neural Profunda ($DNN$), aliada a técnicas de correção de erro ($FEC$), pode criar um canal de comunicação confiável e seguro contra interceptadores passivos, superando métodos lineares tradicionais em cenários de distorção de hardware.
 
-A implementação atual consiste em uma **Prova de Conceito (PoC)** que simula:
-1.  **Transmissor (Alice):** Geração de bits e modulação BPSK.
-2.  **Canal:** Simulação de ruído AWGN (Additive White Gaussian Noise) baseada no modelo COST 259.
-3.  **Receptor Inteligente (Bob):** Uma DNN treinada para decodificar o sinal ruidoso e corrigir erros de bit (BER).
+A implementação atual compara três abordagens:
+
+Zero-Forcing (ZF): Baseline linear tradicional (falha sob distorção não-linear).
+
+Maximum Likelihood (ML): Limite teórico ótimo (alta complexidade computacional).
+
+Deep Neural Network (DNN): Proposta baseada em dados (alta robustez e baixa complexidade).
 
 ## 📂 Estrutura do Repositório
 
+O projeto foi reestruturado para suportar múltiplos cenários de forma modular, separando experimentos lineares (BPSK) de não-lineares (16-QAM com HPA).
+
 ```bash
 .
-├── codes/                      # Código-fonte da simulação
-│   ├── solucao.py              # Script principal (Treinamento e Validação)
-│   └── resultado_treinamento_v2.png # Gráfico de convergência gerado
 ├── docs/                       # Documentação acadêmica e artefatos
-│   ├── Arquitetura_Simulacao.png
-│   ├── Relatórios e Apresentações...
 ├── files/                      # Arquivos auxiliares (LaTeX, Referências)
-└── README.md
+├── results/                    # Gráficos gerados automaticamente
+├── src/                        # Código-fonte modular
+│   ├── main.py                 # Orquestrador (Executa toda a pipeline)
+│   ├── linear/                 # Cenário 1: BPSK (Validação de Baseline)
+│   │   ├── linear_main.py
+│   │   ├── stress_test.py
+│   │   ├── communication.py
+│   │   ├── models.py
+│   │   └── fec_utils.py
+│   └── non_linear/             # Cenário 2: 16-QAM + HPA (Desafio 6G)
+│       ├── nl_main.py
+│       ├── stress_test.py
+│       ├── communication.py
+│       ├── models.py
+│       └── fec_utils.py
+├── LICENSE
+├── README.md
+└── requirements.txt# Pasta central de saída
 ```
 
 ## 🚀 Como Rodar Localmente
@@ -41,7 +59,7 @@ Certifique-se de ter o **Python 3** e o **Git** instalados.
 ### 2. Clonar o Repositório
 ```bash
 git clone [https://github.com/fernando7492/projeto-devops-time-SI.git](https://github.com/fernando7492/projeto-devops-time-SI.git)
-cd projeto-devops-time-SI
+cd projeto-devops-time-SI/codes
 ```
 
 ### 3. Configurar o Ambiente Virtual
@@ -58,6 +76,10 @@ source .venv/bin/activate
 ### 4. Instalar Dependências
 Instale as bibliotecas necessárias (`torch`, `numpy`, `scipy`, `matplotlib`).
 
+```bash
+pip install -r requirements.txt
+```
+
 > **Nota:** Se você não possui uma GPU dedicada ou tem pouco espaço em disco, use o comando abaixo para instalar a versão leve (CPU-only) do PyTorch:
 
 ```bash
@@ -65,38 +87,55 @@ pip install torch --index-url [https://download.pytorch.org/whl/cpu](https://dow
 pip install numpy scipy matplotlib
 ```
 
-### 5. Executar a Simulação
-Navegue até a pasta de códigos e execute o script:
+### 5. Executar a simulação completa
+Execute o script:
 
 ```bash
-cd codes
-python solucao.py
+python main.py
 ```
 
 ### 🔍 O que esperar da execução?
 1.  O script detectará automaticamente seu hardware (CPU ou GPU).
-2.  Iniciará o treinamento da rede neural por **500 épocas**.
-3.  Exibirá a redução da função de perda (*Loss*) no terminal.
-4.  Ao final, calculará a **Taxa de Erro de Bit (BER)**.
-5.  Salvará um gráfico de convergência como `resultado_treinamento_v2.png` na pasta atual.
+2.  Executará os treinamentos para BPSK e 16-QAM.
+3.  Realizará os testes de estresse comparando a IA com algoritmos clássicos (ZF e ML).
+4.  Os resultados gráficos serão salvos automaticamente na pasta results/.
 
 ---
 
-## 📊 Resultados Preliminares
+## Resultados
 
-Abaixo, um exemplo da curva de aprendizado do receptor (Bob), demonstrando a capacidade da rede de reduzir a entropia e aprender a corrigir os erros do canal ruidoso.
+A simulação gera gráficos comparativos de Taxa de Erro de Bit (BER) versus Relação Sinal-Ruído (SNR).
 
-![Gráfico de Convergência](codes/resultado_treinamento_v2.png)
+1. Cenário Linear (Baseline BPSK)
+
+Neste cenário, a DNN atinge a otimalidade matemática, empatando tecnicamente com o equalizador Zero-Forcing em condições ideais, mas mantendo o sigilo contra a interceptadora (Eve).
+
+2. Cenário Não-Linear (Desafio 16-QAM + HPA)
+
+Aqui, a superioridade da IA se torna evidente. Devido à distorção do amplificador de potência, o método linear clássico (ZF) colapsa, apresentando um alto piso de erro. A DNN, por sua vez, aprende a curva de distorção e recupera o sinal com precisão.
+
+
+![Gráfico do cenário linear](results/linear_comparative_result.png)
+![Gráfico de Convergência do cenário não-linear](results/non_linear_comparative_result.png)
+
+## Teste de estresse
+Em cenários reais de redes 6G (V2X), a estimativa do estado do canal ($CSI$) raramente é perfeita. Para validar a robustez, submetemos os receptores a um teste de estresse variando o erro de estimação de 0% a 50%.
+
+Conclusão Principal: A DNN demonstrou ser mais robusta que o Maximum Likelihood (ML) em cenários de alta incerteza (erro de CSI > 10%), provando ser a solução ideal para ambientes dinâmicos onde a matemática rígida falha.
+
+![Resiliência da DNN a Erros de Estimação de Canal](results/non_linear_stress_test_zf.png)
 
 ---
 
 ## 👥 Equipe
+* [**Emanuel Reino**](https://github.com/Emanuel-Al)
+* [**Fernando Emidio**](https://github.com/Fernando7492)
+* [**Gustavo Wanderley**](https://github.com/MESTREGUGABr)
+* [**Pedro William**](https://github.com/pedrowillliam)
+* [**Pedro José**](https://github.com/PJota021)
+## Professor coordenador
 
-* **Emanuel Reino**
-* **Fernando Emidio**
-* **Gustavo Wanderley**
-* **Pedro William**
-* **Pedro José**
+* [**Professor Sergio Mendonça**](https://github.com/sftom)
 
 ---
 Desenvolvido no contexto acadêmico da UFAPE.
