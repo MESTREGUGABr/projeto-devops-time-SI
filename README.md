@@ -3,7 +3,7 @@
 ![Status](https://img.shields.io/badge/Status-Concluído-green)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Framework](https://img.shields.io/badge/Framework-PyTorch-EE4C2C)
-![MIT](https://img.shields.io/badge/License-MIT-blue)
+![GPLv3](https://img.shields.io/badge/License-GPLv3-yellow.svg)
 
 Repositório oficial do projeto da disciplina de **Segurança da Informação** (2025.2) da **Universidade Federal do Agreste de Pernambuco (UFAPE)**.
 
