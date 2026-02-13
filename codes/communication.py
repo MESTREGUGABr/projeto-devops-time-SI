@@ -14,18 +14,22 @@ class CommunicationSystem:
 
     def apply_v2x_channel(self, tx_signal, snr_db):
         batch, length = tx_signal.shape
-        h_real = torch.randn(batch, length).to(self.device)
-        h_imag = torch.randn(batch, length).to(self.device)
-        factor = torch.sqrt(h_real**2 + h_imag**2)
-        h_real = h_real / factor
-        h_imag = h_imag / factor
-        rx_real = tx_signal * h_real
-        rx_imag = tx_signal * h_imag
-        snr_linear = 10 ** (snr_db / 10.0)
-        noise_power = 1.0 / snr_linear
-        noise_std = np.sqrt(noise_power / 2)
-        noise_r = torch.randn_like(rx_real) * noise_std
-        noise_i = torch.randn_like(rx_imag) * noise_std
-        y_real = rx_real + noise_r
-        y_imag = rx_imag + noise_i
-        return y_real, y_imag, h_real, h_imag
+        h_r = torch.randn(batch, length).to(self.device)
+        h_i = torch.randn(batch, length).to(self.device)
+        factor = torch.sqrt(h_r**2 + h_i**2)
+        h_r, h_i = h_r / factor, h_i / factor
+        
+        rx_r = tx_signal * h_r
+        rx_i = tx_signal * h_i
+        
+        snr_lin = 10 ** (snr_db / 10.0)
+        std = np.sqrt(1.0 / (2 * snr_lin))
+        
+        y_r = rx_r + torch.randn_like(rx_r) * std
+        y_i = rx_i + torch.randn_like(rx_i) * std
+        return y_r, y_i, h_r, h_i
+
+def decode_zf(rx_r, rx_i, h_r, h_i):
+    den = h_r**2 + h_i**2 + 1e-12
+    eq_r = (rx_r * h_r + rx_i * h_i) / den
+    return (eq_r > 0).float()
