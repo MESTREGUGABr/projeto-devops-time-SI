@@ -74,7 +74,9 @@ def run_simulation():
         ber_bob_raw.append(b_r); ber_eve_raw.append(e_r)
         ber_bob_fec.append(b_f); ber_eve_fec.append(e_f)
         print(f"{snr:3d}dB | {b_r:10.5f} | {b_f:10.5f} | {e_r:10.5f} | {e_f:10.5f}")
-
+        
+    torch.save(bob_model.state_dict(), 'results/bob_model.pth')
+    
     plt.figure(figsize=(10, 7))
     plt.semilogy(SNR_LIST, ber_bob_raw, 'b--', label='Bob (IA)')
     plt.semilogy(SNR_LIST, ber_bob_fec, 'b-o', linewidth=2, label='Bob (IA + FEC)')
