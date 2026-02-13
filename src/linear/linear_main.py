@@ -8,6 +8,11 @@ from models import PLS_DNN
 from communication import CommunicationSystem
 from fec_utils import encode_repetition, decode_repetition
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../"))
+RESULTS_DIR = os.path.join(PROJECT_ROOT, "results")
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+
 MESSAGE_LEN = 2100 
 BATCH_SIZE = 128        
 NUM_EPOCHS = 1000
@@ -17,7 +22,8 @@ FEC_N = 3
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def run_simulation():
-    os.makedirs('results', exist_ok=True)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    os.makedirs(MODELS_DIR, exist_ok=True)
     
     comm_sys = CommunicationSystem(MESSAGE_LEN, DEVICE)
     bob_model = PLS_DNN().to(DEVICE)
@@ -74,8 +80,9 @@ def run_simulation():
         ber_bob_raw.append(b_r); ber_eve_raw.append(e_r)
         ber_bob_fec.append(b_f); ber_eve_fec.append(e_f)
         print(f"{snr:3d}dB | {b_r:10.5f} | {b_f:10.5f} | {e_r:10.5f} | {e_f:10.5f}")
-        
-    torch.save(bob_model.state_dict(), 'results/bob_model.pth')
+    
+    model_path = os.path.join(MODELS_DIR, 'bob_model_linear.pth')
+    torch.save(bob_model.state_dict(), model_path)
     
     plt.figure(figsize=(10, 7))
     plt.semilogy(SNR_LIST, ber_bob_raw, 'b--', label='Bob (IA)')
@@ -84,8 +91,14 @@ def run_simulation():
     plt.semilogy(SNR_LIST, ber_eve_fec, 'r-s', linewidth=2, label='Eve (IA + FEC)')
     plt.grid(True, which="both", ls="--", alpha=0.6)
     plt.xlabel("SNR (dB)"); plt.ylabel("BER")
-    plt.legend(); plt.savefig("results/comparative_result.png")
-    print("\nSUCESSO: Gráfico salvo em 'results/comparative_result.png'")
+    plt.legend()
+    
+    plot_path = os.path.join(RESULTS_DIR, 'linear_comparative_result.png')
+    plt.savefig(plot_path)
+    
+    print(f"\nSUCESSO:")
+    print(f"Grafico: {plot_path}")
+    print(f"Modelo: {model_path}")
 
 if __name__ == "__main__":
     run_simulation()

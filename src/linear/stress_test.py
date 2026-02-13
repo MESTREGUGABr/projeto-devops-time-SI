@@ -5,16 +5,22 @@ import os
 from models import PLS_DNN
 from communication import CommunicationSystem, decode_zf
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../"))
+RESULTS_DIR = os.path.join(PROJECT_ROOT, "results")
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+
 SNR_FIXA = 10
 CSI_ERROR_LEVELS = [0.0, 0.05, 0.1, 0.2, 0.3, 0.5]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def run_stress_test():
-    os.makedirs('results', exist_ok=True)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     comm = CommunicationSystem(2100, DEVICE)
     
     model = PLS_DNN().to(DEVICE)
-    model.load_state_dict(torch.load('results/bob_model.pth'))
+    model_path = os.path.join(MODELS_DIR, 'bob_model_linear.pth')
+    model.load_state_dict(torch.load(model_path))
     model.eval()
 
     ber_dnn, ber_zf = [], []
@@ -53,7 +59,12 @@ def run_stress_test():
     plt.yscale('log'); plt.grid(True, which="both", ls="--")
     plt.xlabel("Nível de Ruído no CSI"); plt.ylabel("BER"); plt.legend()
     plt.title("Análise de Robustez: IA vs Equalização Clássica")
-    plt.savefig("results/stress_test_zf.png")
+    
+    plot_path = os.path.join(RESULTS_DIR, 'stress_test_zf.png')
+    plt.savefig(plot_path)
+    
+    print(f"\nSUCESSO:")
+    print(f"Grafico: {plot_path}")
 
 if __name__ == "__main__":
     run_stress_test()
