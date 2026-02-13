@@ -3,10 +3,11 @@
 ![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Framework](https://img.shields.io/badge/Framework-PyTorch-EE4C2C)
+![MIT](https://img.shields.io/badge/License-MIT-blue)
 
 Repositório oficial do projeto da disciplina de **Segurança da Informação** (2025.2) da **Universidade Federal do Agreste de Pernambuco (UFAPE)**.
 
-## 📄 Sobre o Projeto
+## Sobre o Projeto
 
 Este projeto investiga a aplicação de **Deep Learning** para garantir a segurança na camada física (Physical Layer Security - PLS) em redes 6G.
 
