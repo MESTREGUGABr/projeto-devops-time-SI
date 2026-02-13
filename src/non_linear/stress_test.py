@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from models import PLS_DNN
-from communication import CommunicationSystem, decode_zf_16qam, apply_hpa_non_linearity
+from communication import CommunicationSystem, decode_zf_16qam, decode_ml_16qam, apply_hpa_non_linearity
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../"))
@@ -23,11 +23,14 @@ def run_stress_test():
     model.load_state_dict(torch.load(model_path))
     model.eval()
 
-    ber_dnn, ber_zf = [], []
+    ber_dnn, ber_zf, ber_ml = [], [], []
 
-    print(f"--- STRESS TEST 16-QAM: IA vs Zero-Forcing (SNR: {SNR_FIXA}dB) ---")
+    print(f"--- STRESS TEST 16-QAM: IA vs ZF vs ML (SNR: {SNR_FIXA}dB) ---")
+    print(f"{'CSI Erro':>10} | {'DNN':>10} | {'ML (Opt)':>10} | {'ZF':>10}")
+    print("-" * 50)
+
     for error_std in CSI_ERROR_LEVELS:
-        e_dnn, e_zf, total = 0, 0, 0
+        e_dnn, e_zf, e_ml, total = 0, 0, 0, 0
         for _ in range(100):
             with torch.no_grad():
                 bits = comm.generate_bits(100)
@@ -38,24 +41,37 @@ def run_stress_test():
                 hi_err = hi + torch.randn_like(hi) * error_std
                 
                 inp = torch.stack((rx_r, rx_i, hr_err, hi_err), dim=2).view(-1, 4)
+                
                 d_dnn = (model(inp).view_as(bits) > 0.5).float()
                 d_zf = decode_zf_16qam(rx_r, rx_i, hr_err, hi_err)
+                d_ml = decode_ml_16qam(rx_r, rx_i, hr_err, hi_err, DEVICE)
 
                 e_dnn += torch.sum(torch.abs(d_dnn - bits)).item()
                 e_zf += torch.sum(torch.abs(d_zf - bits)).item()
+                e_ml += torch.sum(torch.abs(d_ml - bits)).item()
                 total += bits.numel()
 
-        ber_dnn.append(e_dnn/total); ber_zf.append(e_zf/total)
-        print(f"CSI Error {error_std:.2f} | DNN: {ber_dnn[-1]:.5f} | ZF: {ber_zf[-1]:.5f}")
+        ber_dnn.append(e_dnn/total)
+        ber_zf.append(e_zf/total)
+        ber_ml.append(e_ml/total)
+        
+        print(f"{error_std:10.2f} | {ber_dnn[-1]:10.5f} | {ber_ml[-1]:10.5f} | {ber_zf[-1]:10.5f}")
 
     plt.figure(figsize=(10, 6))
-    plt.plot(CSI_ERROR_LEVELS, ber_dnn, 'g-o', label='Bob (DNN NL)')
-    plt.plot(CSI_ERROR_LEVELS, ber_zf, 'r--s', label='Bob (Zero-Forcing)')
-    plt.yscale('log'); plt.grid(True, which="both", ls="--")
-    plt.xlabel("Nível de Ruído no CSI"); plt.ylabel("BER"); plt.legend()
+    plt.plot(CSI_ERROR_LEVELS, ber_dnn, 'g-o', linewidth=2, label='Bob (DNN - Proposed)')
+    plt.plot(CSI_ERROR_LEVELS, ber_ml, 'k--^', label='Bob (ML - Optimal)')
+    plt.plot(CSI_ERROR_LEVELS, ber_zf, 'r--x', alpha=0.6, label='Bob (ZF - Baseline)')
+    
+    plt.yscale('log')
+    plt.grid(True, which="both", ls="--", alpha=0.5)
+    plt.xlabel("Nível de Ruído na Estimação de Canal (CSI Error)")
+    plt.ylabel("Bit Error Rate (BER)")
+    plt.title(f"Robustez sob Distorção Não-Linear (16-QAM, SNR={SNR_FIXA}dB)")
+    plt.legend()
     
     plot_path = os.path.join(RESULTS_DIR, 'non_linear_stress_test_zf.png')
     plt.savefig(plot_path)
+    print(f"\n[SUCESSO] Gráfico salvo em: {plot_path}")
 
 if __name__ == "__main__":
     run_stress_test()

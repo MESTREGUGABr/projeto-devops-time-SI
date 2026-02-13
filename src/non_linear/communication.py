@@ -51,3 +51,42 @@ def decode_zf_16qam(rx_r, rx_i, h_r, h_i):
     r0, r1 = (eq_r > 0).float(), (torch.abs(eq_r) < 2).float()
     i0, i1 = (eq_i > 0).float(), (torch.abs(eq_i) < 2).float()
     return torch.stack((r0, r1, i0, i1), dim=2).view(rx_r.shape[0], -1)
+
+def decode_ml_16qam(rx_r, rx_i, h_r, h_i, device):
+    ref_points = [
+        (-3, -3), (-3, -1), (-3, 1), (-3, 3),
+        (-1, 3), (-1, 1), (-1, -1), (-1, -3),
+        (1, -3), (1, -1), (1, 1), (1, 3),
+        (3, 3), (3, 1), (3, -1), (3, -3)
+    ]
+    ref_bits = [
+        [0,0,0,0], [0,0,0,1], [0,0,1,1], [0,0,1,0],
+        [0,1,1,0], [0,1,1,1], [0,1,0,1], [0,1,0,0],
+        [1,1,0,0], [1,1,0,1], [1,1,1,1], [1,1,1,0],
+        [1,0,1,0], [1,0,1,1], [1,0,0,1], [1,0,0,0]
+    ]
+    
+    p_real = torch.tensor([p[0] for p in ref_points], device=device).float() / np.sqrt(10.0)
+    p_imag = torch.tensor([p[1] for p in ref_points], device=device).float() / np.sqrt(10.0)
+    
+    p_dist_r, p_dist_i = apply_hpa_non_linearity(p_real, p_imag)
+    
+    y_r = rx_r.view(-1, 1)
+    y_i = rx_i.view(-1, 1)
+    H_r = h_r.view(-1, 1)
+    H_i = h_i.view(-1, 1)
+    
+    C_r = p_dist_r.view(1, -1)
+    C_i = p_dist_i.view(1, -1)
+    
+    HC_r = H_r * C_r - H_i * C_i
+    HC_i = H_r * C_i + H_i * C_r
+    
+    dist = (y_r - HC_r)**2 + (y_i - HC_i)**2
+    
+    min_idx = torch.argmin(dist, dim=1)
+    
+    bits_tensor = torch.tensor(ref_bits, device=device).float()
+    decoded_bits = bits_tensor[min_idx]
+    
+    return decoded_bits.view(rx_r.shape[0], -1)
