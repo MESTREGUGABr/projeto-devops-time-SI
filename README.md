@@ -114,7 +114,9 @@ Neste cenário, a DNN atinge a otimalidade matemática, empatando tecnicamente c
 
 Aqui, a superioridade da IA se torna evidente. Devido à distorção do amplificador de potência, o método linear clássico (ZF) colapsa, apresentando um alto piso de erro. A DNN, por sua vez, aprende a curva de distorção e recupera o sinal com precisão.
 
-![Gráfico de Convergência](/results/comparative_result.png)
+
+![Gráfico do cenário linear](results/linear_comparative_result.png)
+![Gráfico de Convergência do cenário não-linear](results/non_linear_comparative_result.png)
 
 ## Teste de estresse
 Em cenários reais de redes 6G (V2X), a estimativa do estado do canal ($CSI$) raramente é perfeita. Para validar a robustez, submetemos os receptores a um teste de estresse variando o erro de estimação de 0% a 50%.
