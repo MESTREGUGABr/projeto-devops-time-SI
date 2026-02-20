@@ -63,17 +63,24 @@ def run_simulation():
                 
                 preds = model(inputs).view_as(bits_coded)
                 d_bob = (preds > 0.5).float()
-                d_eve = (rx_r > 0).float()
+                
+                eve_r0 = (rx_r > 0).float()
+                eve_r1 = (torch.abs(rx_r) < 2).float()
+                eve_i0 = (rx_i > 0).float()
+                eve_i1 = (torch.abs(rx_i) < 2).float()
+                d_eve = torch.stack((eve_r0, eve_r1, eve_i0, eve_i1), dim=2).view_as(bits_coded)
                 
                 e_b += torch.sum(torch.abs(d_bob - bits_coded)).item()
-                e_e += torch.sum(torch.abs(d_eve - bits_coded[:, ::4])).item()
+                e_e += torch.sum(torch.abs(d_eve - bits_coded)).item()
                 t_raw += bits_coded.numel()
                 
                 f_bob = decode_repetition(d_bob, n=FEC_N)
                 e_f += torch.sum(torch.abs(f_bob - bits_orig)).item()
                 t_fec += bits_orig.numel()
 
-        ber_bob.append(e_b/t_raw); ber_fec.append(e_f/t_fec); ber_eve.append(e_e/(t_raw/4))
+        ber_bob.append(e_b/t_raw)
+        ber_fec.append(e_f/t_fec)
+        ber_eve.append(e_e/t_raw)
         print(f"{snr:3d}dB | Bob: {ber_bob[-1]:.5f} | FEC: {ber_fec[-1]:.5f} | Eve: {ber_eve[-1]:.5f}")
     
     model_path = os.path.join(MODELS_DIR, 'bob_model_nl.pth')
@@ -84,7 +91,8 @@ def run_simulation():
     plt.semilogy(SNR_LIST, ber_fec, 'b-o', linewidth=2, label='Bob (DNN NL + FEC)')
     plt.semilogy(SNR_LIST, ber_eve, 'r--', label='Eve (Passivo)')
     plt.grid(True, which="both", ls="--", alpha=0.6)
-    plt.xlabel("SNR (dB)"); plt.ylabel("BER")
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("BER")
     plt.legend()
     
     plot_path = os.path.join(RESULTS_DIR, 'non_linear_comparative_result.png')
