@@ -1,104 +1,214 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% How to use writeLaTeX: 
-%
-% You edit the source code here on the left, and the preview on the
-% right shows you the result within a few seconds.
-%
-% Bookmark this page and share the URL with your co-authors. They can
-% edit at the same time!
-%
-% You can upload figures, bibliographies, custom classes and
-% styles using the files menu.
-%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \documentclass[12pt]{article}
 
-\usepackage{sbc-template}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{float} 
 
-\usepackage{graphicx,url}
-\usepackage[utf8]{inputenc} 
-\usepackage{booktabs} % Para tabelas mais bonitas
-\usepackage{hyperref} % Para links clicáveis
-
-\sloppy
-
-\title{Relatório de Análise de Lacuna de Pesquisa e Proposta Metodológica}
-
-% --- PREENCHA COM OS AUTORES E AFILIAÇÕES ---
-\author{Fernando Emidio \inst{1}, Emanuel Reino \inst{1}, Pedro William \inst{1}, Gustavo Wanderley \inst{1}, Pedro José \inst{1} }
-
-\address{Universidade Federal do Agreste de Pernambuco\inst{1} \\ Garanhuns -- Pernambuco -- Brasil
+\geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=20mm,
+ top=20mm,
 }
 
-\begin{document} 
+\title{Resiliência de Camada Física em Redes 6G: Mitigação Neural de Distorções Não-Lineares sob Incerteza de CSI}
+
+\author{Fernando Emidio$^1$, Emanuel Reino$^1$, Pedro William$^1$, \\ Gustavo Wanderley$^1$, Pedro José$^1$}
+
+\date{}
+
+\begin{document}
 
 \maketitle
 
+\begin{center}
+    \small
+    $^1$ Universidade Federal do Agreste de Pernambuco (UFAPE) -- Garanhuns -- PE -- Brasil \\
+    \texttt{\{fernando.emidio, emanuel.reino, pedro.william, gustavo.wanderley, pedro.jose\}@ufape.edu.br}
+\end{center}
+
+\vspace{0.5cm}
+
 \begin{abstract}
-This paper proposes an advanced Physical Layer Security (PLS) framework for 6G networks. The core innovation lies in the integration of a Deep Neural Network (DNN) in the decoding process. This approach, called PLS-DNN, replaces traditional linear detection methods, demonstrating a substantial performance improvement on the order of 10-15 dB in Signal-to-Noise Ratio (SNR). Additionally, the work introduces, for the first time, the combination of this PLS scheme with Alamouti Space-Time Coding (STC), aiming to increase transmission reliability.
+\textbf{Abstract.} 
+    The transition to 6G networks demands high spectral efficiency modulations (16-QAM), driving power amplifiers (HPA) to operate near saturation and inducing severe non-linear distortions (AM/AM). In vehicular scenarios, Channel State Information (CSI) uncertainty exacerbates this issue, causing traditional linear equalizers (Zero-Forcing) to collapse and weakening Maximum Likelihood (ML) detectors. This paper proposes a Physical Layer Security (PLS) architecture based on Deep Neural Networks (DNN) for soft-demapping and blind digital post-distortion. Experiments in a wiretap channel demonstrate that the DNN matches the optimal theoretical bound under perfect CSI, but outperforms the ML detector under severe channel estimation uncertainty. Supported by Forward Error Correction (FEC), the architecture consolidates cryptographic isolation, achieving a zero Bit Error Rate (BER) for the legitimate receiver at 20dB SNR, while keeping a passive eavesdropper in a state of perfect secrecy (50\% BER).
 \end{abstract}
 
-\begin{resumo} 
-O artigo em questão propõe um framework avançado de Segurança de Camada Física (PLS) para redes 6G. A inovação central reside na integração de uma Rede Neural Profunda (DNN) no processo de decodificação. Esta abordagem, denominada PLS-DNN, substitui os métodos de detecção linear tradicionais, demonstrando uma melhoria de desempenho substancial, na ordem de 10-15 dB, em termos de Relação Sinal-Ruído (SNR). Adicionalmente, o trabalho introduz, pela primeira vez, a combinação deste esquema PLS com Codificação Espaço-Tempo (STC) de Alamouti, visando aumentar a confiabilidade da transmissão.
-\end{resumo}
+\begin{abstract}
+\textbf{Resumo.} 
+    A transição para as redes 6G exige modulações de alta eficiência espectral (16-QAM), forçando amplificadores de potência (HPA) a operarem próximos à saturação e gerando severas distorções não-lineares (AM/AM). Em cenários veiculares, a incerteza da Informação de Estado do Canal (CSI) agrava o problema, causando o colapso de equalizadores lineares tradicionais (Zero-Forcing) e fragilizando detectores de Máxima Verossimilhança (ML). Este artigo propõe uma arquitetura de Segurança de Camada Física (PLS) baseada em Redes Neurais Profundas (DNN) para demodulação suave (Soft-Demapping) e pós-distorção digital cega. Experimentos em um canal wiretap demonstraram que a DNN empata com o limite teórico ótimo sob CSI perfeita, mas supera o desempenho do detector ML sob forte incerteza de estimação de canal. Apoiada por correção de erro direta (FEC), a arquitetura consolida o isolamento criptográfico, atingindo Taxa de Erro de Bit (BER) nula para o receptor legítimo a 20dB de SNR, enquanto mantém um espião passivo em estado de sigilo perfeito (BER de 50\%).
+\end{abstract}
 
+\section{Introdução}
+    A evolução para as redes sem fio de sexta geração (6G) impõe demandas rigorosas por eficiência espectral e baixíssima latência, impulsionando a adoção de modulações de alta densidade, como o 16-QAM e superiores, em cenários de comunicação veicular (V2X) \cite{3gpp, hakeem}. Para suportar o alto tráfego de dados com eficiência energética restrita, os transmissores são frequentemente forçados a operar seus Amplificadores de Potência (HPA) próximos à região de saturação. Esta escolha arquitetural introduz severas distorções não-lineares de amplitude (AM/AM), deformando a constelação do sinal transmitido \cite{costa1999}. 
+    
+    Em paralelo, a hipermobilidade característica das redes V2X resulta em desvanecimento rápido (\textit{fast-fading}) e exige estimativas frequentes da Informação de Estado do Canal (CSI). Na prática, essas estimativas são ruidosas e imperfeitas. Quando a distorção não-linear do amplificador se sobrepõe à incerteza da CSI, os receptores lineares clássicos entram em colapso. O equalizador \textit{Zero-Forcing} (ZF), padrão em sistemas simplificados, assume estritamente um modelo afim e é incapaz de reverter a compressão de ganho imposta pelo HPA, atingindo rapidamente um piso de erro (\textit{Error Floor}) inaceitável \cite{kim2020}. Por outro lado, detectores ótimos baseados em Máxima Verossimilhança (ML) exigem o conhecimento exato da equação de distorção do hardware e sofrem degradação exponencial quando a estimativa de canal falha, além de apresentarem complexidade computacional inviável para modulações densas no 6G.
+    
+    Neste cenário caótico, a Segurança na Camada Física (PLS -- \textit{Physical Layer Security}) surge como um paradigma para prover sigilo incondicional sem a latência da criptografia assimétrica tradicional \cite{bloch2011}. O PLS explora as degradações estocásticas do canal sem fio para garantir que um eavesdropper passivo (Eve), desprovido de CSI válida, seja incapaz de decodificar a mensagem \cite{zou2016}. Contudo, o grande desafio de engenharia é garantir que o receptor legítimo (Bob) consiga mitigar suas próprias distorções físicas (HPA e ruído de canal) o suficiente para abrir uma margem de segurança efetiva (\textit{Secrecy Gap}).
+    
+    Para preencher essa lacuna técnica, arquiteturas baseadas em Inteligência Artificial, especificamente Redes Neurais Profundas (DNN), têm demonstrado capacidade ímpar de aproximar funções inversas complexas sem necessitar de modelagem matemática explícita do canal ou do hardware \cite{oshea2017, ye2018}. A rede neural aprende a topologia deformada dos dados a partir de exemplos, atuando simultaneamente como um equalizador de canal e um algoritmo de Pós-Distorção Digital (DPoD).
+    
+    Este artigo propõe e avalia uma arquitetura de recepção PLS assistida por DNN projetada para cenários de alta eficiência espectral sob severa imperfeição física. As principais contribuições deste trabalho são:
+    \begin{itemize}
+        \item \textbf{Modelagem de Distorção HPA sob CSI Imperfeita:} Implementação de um ambiente de simulação em banda base que avalia o impacto conjunto do achatamento AM/AM e da incerteza estocástica de canal.
+        \item \textbf{Soft-Demapping Neural Cego:} Concepção de uma DNN capaz de realizar o demapeamento bit-a-bit de constelações 16-QAM baseando-se puramente na observação conjunta do sinal ruidoso e da CSI estimada, dispensando o conhecimento analítico do amplificador.
+        \item \textbf{Prova de Resiliência via Stress Test:} Demonstração quantitativa de que a DNN não apenas anula a degradação estrutural do Zero-Forcing, mas supera o limite ótimo do detector ML sob condições de alta variância no erro de estimação de canal.
+        \item \textbf{Consolidação do \textit{Secrecy Gap}:} Validação empírica de que a linearização neural é suficiente para que um esquema primário de *Forward Error Correction* (FEC) reduza a Taxa de Erro de Bit (BER) a zero, enquanto assegura uma equivocidade máxima (BER $\approx 0.5$) para interceptadores desprovidos de referência de fase.
+    \end{itemize}
 
-\section{Análise do Artigo e Identificação da Lacuna de Pesquisa}
+\section{Trabalhos Relacionados}
+    A base teórica da Segurança na Camada Física remonta aos modelos de canal de Shannon \cite{shannon1948}, sendo posteriormente estruturada para cenários modernos de comunicação sem fio por pesquisadores como Bloch e Barros \cite{bloch2011}. Surveys extensivos, como os conduzidos por Mukherjee et al. \cite{mukherjee2014} e Zou et al. \cite{zou2016}, consolidaram as métricas de avaliação de PLS, destacando a dependência crítica de uma vantagem de canal (\textit{Channel State Advantage}) do receptor legítimo sobre o espião para garantir taxas de sigilo estritamente positivas. 
+    
+    Com a aproximação das redes 6G, Yang et al. \cite{yang} e Abdel Hakeem et al. \cite{hakeem} delinearam as exigências para sistemas massivos e veiculares, apontando a Inteligência Artificial não apenas como ferramenta de otimização, mas como fundação nativa da rede para lidar com cenários altamente dinâmicos. A transição da teoria analítica para o aprendizado profundo na camada física foi catalisada pelo trabalho seminal de O'Shea e Hoydis \cite{oshea2017}, que formularam sistemas de comunicação ponta-a-ponta como autoencoders neurais.
+    
+    No domínio de canais imperfeitos, Ye et al. \cite{ye2018} demonstraram a superioridade das DNNs sobre métodos lineares tradicionais na estimação conjunta de canal e detecção de sinais OFDM sob ausência de estatísticas prévias. Expandindo essa robustez para hardwares com eficiência energética crítica, Felix et al. \cite{felix2018} e Kim et al. \cite{kim2020} aplicaram técnicas de \textit{Deep Learning} para a mitigação direta de não-linearidades introduzidas por Amplificadores de Potência (HPA), contornando as limitações dos complexos esquemas clássicos de pré-distorção analógica.
+    
+    O alinhamento transversal entre PLS e IA foi recentemente explorado por Ara e Kelley \cite{ara}, que propuseram a segurança nativa na camada 1 utilizando demapeadores neurais. Contudo, a validação de tais arquiteturas encontra-se metodologicamente defasada, limitando-se a modulações simples (BPSK) e modelos de canal estacionários. O presente trabalho preenche esta lacuna ao estressar a arquitetura neural sob a tripla convergência de desafios do 6G: alta ordem de modulação (16-QAM), distorção não-linear severa (AM/AM) e degradação estocástica contínua da Informação de Estado de Canal (CSI) inerente à hipermobilidade V2X.
 
-A metodologia de validação dos autores consiste em simulações de Monte Carlo que avaliam a Taxa de Erro de Bit (BER) versus SNR para os receptores legítimos (Bob) e para o espião (Eve). Os resultados, apresentados nas Figuras 9 a 13 do artigo de referência (Ara, I. \& Kelley, B., 2024)\footnote{Artigo de referência: \url{https://ieeexplore.ieee.org/document/10555268/}}, comprovam que, enquanto Bob (o receptor legítimo) atinge uma decodificação quase perfeita em SNRs mais baixas, Eve (o espião) mantém uma taxa de erro de bit elevada, confirmando a eficácia da segurança.
+\section{Modelagem do Sistema e Ameaças}
 
-A Tabela 1 contextualiza o artigo principal em relação a trabalhos anteriores e à lacuna que este projeto propõe preencher.
+O sistema de comunicação é modelado no equivalente em banda base discreto no tempo. A arquitetura contempla um nó transmissor (Alice) que envia informações confidenciais para um nó legítimo (Bob) através de um canal de desvanecimento veicular, sob a presença de um nó interceptador passivo (Eve). O sistema opera com modulação 16-QAM (\textit{Quadrature Amplitude Modulation}) utilizando mapeamento de Gray, com os símbolos normalizados para energia média unitária ($E[|x|^2] = 1$) \cite{proakis2008, cho2002}.
 
-% --- CORREÇÃO APLICADA AQUI ---
-% Usei colunas p{largura} para forçar a quebra de linha do texto
-% As larguras (3.0cm + 3.5cm + 3.5cm + 4.5cm = 14.5cm) cabem na página.
-\begin{table}[h!]
-\centering
-\caption{Tabela comparativa dos trabalhos analisados e da proposta.}
-\label{tab:comparativo}
-\begin{tabular}{@{}p{3.0cm}p{3.5cm}p{3.5cm}p{4.5cm}@{}}
-\toprule
-\textbf{Autor/Trabalho} & \textbf{Foco Principal} & \textbf{Modelo de Canal Utilizado} & \textbf{Lacuna de Pesquisa / Limitação} \\ \midrule
-PLS Tradicional (Genérico) & Segurança baseada em teoria da informação (ex: sigilo). & AWGN, Rayleigh (lento). & Dificuldade em se adaptar a canais complexos; desempenho subótimo. \\ \\
-Ara et al. (2024) & PLS + Decodificação DNN; PLS + STC. & COST 259, AWGN. & Desempenho não avaliado em canais não-estacionários de alta mobilidade (ex: V2X). \\ \\
-Abdel Hakeem et al. (2022) & Revisão dos requisitos de segurança 6G. & N/A (Revisão). & Identifica V2X/CAV como aplicações 6G críticas que exigem segurança em alta mobilidade. \\ \\
-\textbf{Este Trabalho (Proposto)} & \textbf{Análise de desempenho do PLS-DNN em canais V2X.} & \textbf{COST 259 (Baseline) vs. Modelo V2X (ex: Rayleigh com \textit{fading} rápido).} & \textbf{Preenche a lacuna de validação do PLS-DNN em ambientes de alta mobilidade.} \\ \bottomrule
-\end{tabular}
+\subsection{Transmissor e Distorção Não-Linear (HPA)}
+
+A literatura inicial de PLS frequentemente adota modulações de baixa ordem (como BPSK). Contudo, o 6G exigirá esquemas de alta eficiência, como o 16-QAM, frequentemente operados sobre multiplexação ortogonal (OFDM). Conforme demonstrado por Costa et al. \cite{costa1999}, a flutuação de envoltória inerente a essas arquiteturas força os Amplificadores de Potência (HPA) a operarem sob severas penalidades não-lineares. Como a demodulação do 16-QAM exige precisão estrita na amplitude, ela expõe a vulnerabilidade direta do sistema às imperfeições de hardware.
+    
+Assume-se que o HPA opera próximo à sua região de compressão para maximizar a eficiência energética. A distorção de amplitude (AM/AM) é modelada analiticamente por um polinômio sem memória truncado na terceira ordem. Dado o símbolo ideal normalizado $x \in \mathbb{C}$, a função de transferência do amplificador saturado é definida pela compressão de sua magnitude $|x|$ \cite{behravan2005}. O sinal distorcido transmitido, $x_{nl}$, preserva a fase original, mas sofre atenuação não-linear em sua amplitude, sendo expresso por:
+
+$$x_{nl} = x(1 - \alpha |x|^2)$$
+
+onde o parâmetro $\alpha$ dita a severidade da distorção de intermodulação (IMD3). Para este experimento, adotou-se $\alpha = 0.15$. Esta parametrização é metodologicamente crucial: ela força os símbolos da extremidade da constelação 16-QAM a colidirem com o teto de saturação, enquanto os símbolos internos operam em regime quase linear. Esta deformação geométrica assimétrica quebra a premissa de distâncias euclidianas equidistantes exigida por receptores convencionais.
+    
+\subsection{Canal V2X e Incerteza de CSI}
+
+O sinal distorcido trafega por um canal de desvanecimento plano (\textit{Flat Fading}) típico de cenários V2X, caracterizado por rápidas flutuações de fase e magnitude unitária controlada. O sinal recebido por Bob é modelado como:
+
+$$y_B = h_B \cdot x_{nl} + n_B$$
+
+onde $h_B \in \mathbb{C}$ é o coeficiente de canal entre Alice e Bob, sujeito a rotações de fase aleatórias uniformemente distribuídas no intervalo $[0, 2\pi)$, e $n_B \sim \mathcal{CN}(0, \sigma_n^2)$ é o ruído aditivo gaussiano branco (AWGN). A variância do ruído $\sigma_n^2$ é ajustada dinamicamente com base em premissas de estimação de Taxa de Erro de Bit em simulações de Monte Carlo \cite{jeruchim1984}.
+
+A premissa metodológica central desta modelagem é a rejeição da hipótese de CSI perfeita. Devido à alta mobilidade, Bob dispõe apenas de uma estimativa ruidosa do canal, denotada por $\hat{h}_B$:
+
+$$\hat{h}_B = h_B + e_{csi}$$
+
+onde o erro de estimação é modelado como um processo estocástico complexo $e_{csi} \sim \mathcal{CN}(0, \sigma_e^2)$. A introdução de $\sigma_e^2 > 0$ acopla a incerteza estatística do canal à não-linearidade física do transmissor \cite{ye2018}, criando o cenário de estresse limite para a validação da arquitetura de decodificação proposta \cite{kim2020}.
+
+\subsection{O Modelo de Ameaça (Wiretap Channel)}
+
+O modelo de ameaça assume um cenário passivo fundamentado estritamente na teoria do \textit{Wiretap Channel} \cite{bloch2011}. Eve intercepta a transmissão através de um canal fisicamente independente de Bob, modelado por $y_E = h_E \cdot x_{nl} + n_E$. 
+
+A vantagem tática de Bob reside exclusivamente na assimetria de Informação de Estado do Canal. Assume-se que Bob estima $\hat{h}_B$ através de um protocolo de sondagem legítimo na camada física, enquanto Eve atua como um ouvinte cego, desprovida de qualquer conhecimento válido sobre o coeficiente de canal complexo $h_E$ \cite{mukherjee2014}. Consequentemente, Eve é forçada a realizar a demodulação sem compensação de rotação de fase, dependendo exclusivamente da extração marginal geométrica dos limiares de decisão no plano complexo.
+
+\section{Arquitetura de Detecção e Decodificação}
+
+A inovação central reside na substituição dos algoritmos de equalização determinística por um demapeador baseado em Redes Neurais Profundas (DNN). Esta seção delineia o colapso estrutural das abordagens tradicionais e formaliza a topologia neural projetada.
+
+\subsection{Limitações dos Detectores Clássicos}
+
+A equalização \textit{Zero-Forcing} (ZF) opera sob a premissa de um canal afim, estimando o símbolo através da inversão matricial direta $\hat{x}_{zf} = \frac{y}{\hat{h}}$. Ao expandir o sinal recebido sob influência do HPA ($y = h \cdot x_{nl} + n$), a saída do equalizador torna-se:
+
+$$\hat{x}_{zf} = \frac{h}{\hat{h}} x_{nl} + \frac{n}{\hat{h}}$$
+
+Nesta formulação, o ZF sofre uma dupla penalidade estrutural. Primeiro, ao tentar inverter um canal cuja estimativa ($\hat{h}$) possui alta variância estocástica, ele amplifica iterativamente o ruído AWGN (termo $n/\hat{h}$). Segundo, mesmo se $\hat{h} = h$, o equalizador extrai $x_{nl}$, engolindo irreversivelmente a compressão cúbica do amplificador. Sendo estruturalmente cego à distorção AM/AM, o ZF converge para um piso de erro (\textit{Error Floor}) prematuro \cite{kim2020}.
+
+Por sua vez, o detector de Máxima Verossimilhança (ML) estabelece a fronteira teórica ótima calculando a distância euclidiana mínima: $\hat{x}_{ml} = \arg\min_{x \in X} |y - \hat{h} \cdot \Phi(x)|^2$. Embora tecnicamente robusto sob premissas ideais, sua aplicação sofre de duas vulnerabilidades arquiteturais severas no escopo do 6G. Primeiramente, exige que o receptor possua conhecimento exato da função de transferência paramétrica do hardware do transmissor ($\Phi(\cdot)$). Em segundo lugar, o ML fundamenta-se em uma rigidez geométrica letal: quando a estimativa de canal $\hat{h}$ degrada devido ao efeito Doppler, a métrica de distância euclidiana corrompe-se, levando o algoritmo a sofrer degradação de desempenho exponencial ao assumir certezas analíticas em um ambiente de alta incerteza \cite{oshea2017}.
+
+No modelo de ameaça físico delineado, o impasse matemático para a interceptadora (Eve) é incontornável. Privada do estado de fase do canal, Eve sofre de ambiguidade polar múltipla. Ao processar o sinal cru, é fisicamente impossível determinar se uma atenuação observada decorre do desvanecimento construtivo do canal, da distorção original do HPA ou da própria modulação em quadratura, garantindo um bloqueio algorítmico inquebrável.
+
+\subsection{O Demapeador Neural Profundo (DNN)}
+
+Para contornar as restrições analíticas do teorema de equalização clássica, desenvolveu-se um demapeador neural focado na extração de características conjuntas não-lineares \cite{ye2018}. A arquitetura implementada baseia-se em um \textit{Multilayer Perceptron} (MLP), estruturado para \textit{Soft-Demapping} bit-a-bit de constelações 16-QAM sob interferência intrínseca.
+
+O tensor de entrada da rede ($\mathcal{I}_{in}$) é tetradimensional, assimilando a separação ortogonal do sinal recebido e da CSI ruidosa: $\mathcal{I}_{in} = [\Re\{y\}, \Im\{y\}, \Re\{\hat{h}\}, \Im\{\hat{h}\}]$. A injeção da estimativa de canal como \textit{feature} independente delega à DNN a capacidade de derivar empiricamente a rotação da superfície de decisão geométrica \cite{felix2018}.
+
+O processamento latente flui através de três camadas densas sequenciais de 256, 128 e 64 neurônios, intermediadas por funções de ativação \textit{Rectified Linear Unit} (ReLU). A topologia profunda permite a não-linearidade necessária para dobrar os hiperplanos de classificação, agindo como um agente de Pós-Distorção Digital capaz de aproximar a inversa da compressão cúbica do HPA de forma puramente datadriven.
+
+A camada de saída mapeia o domínio latente para o espaço binário log-verossímil através de 4 neurônios ativados pela função Sigmoide, estimando a probabilidade \textit{a posteriori} de cada bit $P(\hat{b}_i = 1 | y, \hat{h})$. A otimização dos pesos foi conduzida pelo algoritmo Adam \cite{kingma2015}, minimizando iterativamente a função de Entropia Cruzada Binária (BCE), fundamentada por O'Shea e Hoydis \cite{oshea2017} como métrica analítica robusta para camadas de recepção rádio-cognitivas. O treinamento foi condicionado a um regime de SNR fixa (15 dB) para impedir a convergência passiva do modelo em um filtro puramente redutor de ruído térmico AWGN.
+
+\subsection{Correção de Erro Direta (FEC)}
+
+A teoria fundamental da comunicação em canais ruidosos estabelecida por Shannon \cite{shannon1948} demonstra que, com codificação apropriada, a informação pode ser transmitida com probabilidade de erro arbitrariamente pequena. Em protocolos de segurança de camada física, o papel da Correção de Erro Direta (FEC) não é primariamente ocultar o dado original, mas explorar as variações do canal \textit{wiretap} para alargar irreversivelmente a margem de entropia \cite{bloch2011}.
+
+Para esta finalidade estrutural, a solução adota um código de repetição majoritário ($R=1/3$). O propósito desta simplificação em detrimento de códigos modernos de aproximação de capacidade (como LDPC) é provar analiticamente a pureza da mitigação neural. Se a DNN convergir a detecção de Bob o suficiente para que um codificador rudimentar de \textit{Hard-Decision} elimine os erros residuais, comprova-se a validade operacional da linearização. Simultaneamente, como Eve intercepta amostras sob um processo puramente estocástico desprovido de referência de fase, a redundância do FEC torna-se estéril, propagando vetores de erro randômicos que culminam em falha na votação majoritária.
+
+\section{Avaliação Experimental e Resultados}
+
+Para validar a resiliência empírica da arquitetura e a segurança de camada 1, as avaliações foram implementadas no \textit{framework} PyTorch e submetidas a métodos rigorosos de Monte Carlo aplicados à simulação de enlaces digitais \cite{jeruchim1984}. 
+
+\subsection{Metodologia de Simulação e Treinamento}
+
+O ambiente foi configurado para processar vetores estocásticos em simulações de Monte Carlo para garantir validade estatística \cite{jeruchim1984}. A estabilização linear da função de perda (BCE) durante o treinamento assegurou a convergência latente da modelagem do HPA sem superajuste sobre o ruído térmico. Os hiperparâmetros globais do sistema estão consolidados na Tabela \ref{tab:parametros}.
+
+\begin{table}[H]
+    \centering
+    \caption{Parâmetros Globais do Sistema e da Rede Neural}
+    \label{tab:parametros}
+    \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Parâmetro} & \textbf{Valor} \\ \midrule
+    Modulação & 16-QAM (Gray Code) \\
+    Comprimento da Mensagem & 2400 bits \\
+    Tamanho do Lote (\textit{Batch Size}) & 128 \\
+    Fator de Saturação HPA ($\alpha$) & 0.15 \\
+    Código de Canal (FEC) & Repetição ($R = 1/3$) \\
+    Topologia da DNN (Ocultas) & 256, 128, 64 neurônios \\
+    Ativação (Ocultas / Saída) & ReLU / Sigmoid \\
+    Otimizador / \textit{Learning Rate} & Adam \cite{kingma2015} / 0.001 \\
+    SNR de Treinamento da DNN & 15 dB \\
+    Épocas de Treinamento & 1000 \\ \bottomrule
+    \end{tabular}
 \end{table}
-% --- FIM DA CORREÇÃO ---
 
-A lacuna de pesquisa identificada emerge da limitação dos ambientes de teste. O artigo afirma explicitamente que todas as análises de desempenho foram conduzidas utilizando o modelo de canal COST 259. Este modelo simula ambientes como área urbana (TUx), área rural (RAx) e terreno montanhoso (HTx). Embora sejam cenários padrão, eles representam canais majoritariamente estacionários ou de variação lenta.
+\subsection{Análise de Robustez sob Incerteza de CSI}
 
-Contudo, as redes 6G são projetadas para suportar casos de uso de hipermobilidade, como transporte automatizado e comunicações Veículo-para-Tudo (V2X). Esses cenários são caracterizados por canais não-estacionários e de variação extremamente rápida, cujas características não são capturadas pelo modelo COST 259. Portanto, a lacuna de pesquisa é a ausência de uma análise de desempenho e validação do framework PLS-DNN em ambientes de canal não-estacionários e de rápida variação (fast-fading), que são cruciais para muitos dos casos de uso prometidos pelo 6G.
+A avaliação de resiliência (Figura \ref{fig:stress}) isola o impacto destrutivo combinado da física de hardware (HPA) com a imprecisão analítica de \textit{software} ($\sigma_e$). Para evidenciar a perda de performance associada exclusivamente à saturação de potência, foi estipulado um \textit{baseline} utópico (ZF operando em um transmissor ideal $\alpha=0.0$). A fenda vertical entre a curva base e os cenários avaliados ilustra o colapso intrínseco.
 
-\section{Definição da Metodologia Proposta}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{results/non_linear_stress_test_zf.png}
+    \caption{Avaliação de robustez: Impacto combinado da distorção AM/AM e do erro de estimação de canal (CSI) no desempenho dos receptores para 16-QAM.}
+    \label{fig:stress}
+\end{figure}
 
-Para preencher a lacuna identificada, propõe-se uma metodologia de Simulação Comparativa, estruturada em três fases principais. O objetivo é quantificar o impacto de canais de alta mobilidade no desempenho de segurança do framework PLS-DNN proposto no artigo.
+A topologia gráfica confirma as teses da Seção 4. O ZF não-linear atinge um limiar de colapso irreversível, mantendo o pior desempenho durante a totalidade do estresse. Crucialmente, no domínio de canal ideal ($\sigma_e = 0.0$), a extração preditiva da DNN (BER $= 2.07\%$) espelha com exatidão a precisão do algoritmo ótimo ML (BER $= 2.04\%$), materializando a compensação reversa cega da rede neural. 
 
-\subsection{Fase 1: Replicação do Baseline e Validação}
-O primeiro passo consiste em replicar fielmente o experimento do artigo original para validar o ambiente de simulação. Isso envolve a implementação do framework PLS-DNN em Python, utilizando bibliotecas como PyTorch ou TensorFlow para a DNN e NumPy para as operações de sinal. O transmissor (Alice), o receptor (Bob) e o espião (Eve) serão modelados conforme descrito, e o decodificador de Bob e Eve será a arquitetura DNN detalhada na Figura 4 do artigo de referência. O canal de comunicação implementado será o COST 259. A simulação será executada varrendo os níveis de SNR para gerar as curvas de BER. O sucesso desta fase será determinado pela capacidade de reproduzir, com margem de erro aceitável, os gráficos de desempenho apresentados no artigo original (ex: Figuras 10 e 11), confirmando a validade do setup.
+Entretanto, o divisor de águas computacional evidencia-se sob alta incerteza de fase ($\sigma_e \ge 0.3$). Ao contrário da formulação estática do ML — que sofre viés grave ao computar normas euclidianas baseadas em referências de canal degradadas —, a maleabilidade do \textit{Soft-Demapping} neural internaliza a covariância do erro de estimação. No ápice do estresse, a DNN supera as barreiras analíticas ótimas, consolidando-se como o único algoritmo tolerante aos severos gargalos da camada física das redes V2X \cite{kim2020}.
 
-\subsection{Fase 2: Modificação Experimental e Retreinamento}
-Nesta fase, o componente do canal de comunicação será substituído para endereçar a lacuna. O modelo de canal COST 259 será trocado por um modelo que simule um ambiente de alta mobilidade V2X, como um canal Rayleigh com desvanecimento (fading) rápido e não-estacionário. Mantendo todo o restante do framework (Alice, Bob, Eve e a arquitetura da DNN) idêntico, um novo dataset sintético será gerado usando este novo modelo de canal. Um passo crítico será o retreinamento dos modelos DNN de Bob e Eve usando este novo dataset. A IA, que foi originalmente treinada para as características do COST 259, deve agora aprender a decodificar os sinais sob as novas e mais complexas distorções do canal V2X.
+\subsection{Isolamento Criptográfico (Secrecy Gap)}
 
-\subsection{Fase 3: Análise Comparativa e Conclusão}
-Após o retreinamento, a simulação de BER vs. SNR será executada novamente. O resultado final será um conjunto de gráficos comparativos que sobrepõem o desempenho do baseline (Fase 1) com o do novo experimento (Fase 2). A análise se concentrará na "lacuna de segurança" (a diferença vertical entre as curvas de BER de Bob e Eve). Esta metodologia permitirá responder quantitativamente à pergunta de pesquisa: A vantagem de segurança proporcionada pelo PLS-DNN se sustenta, diminui ou colapsa quando submetida a ambientes de canal de alta mobilidade, típicos do 6G?
+A eficácia última das arquiteturas PLS assenta-se sobre a métrica probabilística do canal interceptado \cite{zou2016}. A Figura \ref{fig:comparative} detalha o desempenho integral do \textit{Wiretap Channel} frente às variações do SNR global.
 
-% --- INÍCIO DAS REFERÊNCIAS ADICIONAIS ---
-\section*{Referências Adicionais}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{results/non_linear_comparative_result.png}
+    \caption{Isolamento Criptográfico: Consolidação do \textit{Secrecy Gap} via rede neural e código FEC sob canal não-estacionário com distorção HPA.}
+    \label{fig:comparative}
+\end{figure}
 
-Abaixo estão os links para outros artigos citados ou relevantes para o contexto deste trabalho:
+O comportamento empírico espelha com precisão a predição teórica da assimetria de canal \cite{bloch2011}. Para a interceptadora passiva (Eve), a privação da dinâmica de fase impõe a inviabilidade de decodificação de constelações densas, estagnando rigorosamente sua taxa de erro na casa dos $50\%$ ao longo de todo o espectro energético simulado.
 
+Sob o escopo legítimo, a equalização proporcionada pelo \textit{Deep Learning} confere ao receptor (Bob) a vantagem física crítica necessária para o funcionamento estruturado da correção de erro. A associação do demapeador contínuo com a lógica majoritária rígida reduz matematicamente o ruído residual, suprimindo o BER a um estado praticamente nulo nas faixas de 20 a 25 dB, mesmo sob o estresse imposto pelo transmissor deficiente. A consolidação deste \textit{Secrecy Gap} profundo valida a exequibilidade operacional do PLS como blindagem criptográfica autossuficiente na Camada 1 para sistemas 6G.
+
+\section{Conclusão e Trabalhos Futuros}
+
+Este trabalho evidenciou a vulnerabilidade estrutural de receptores clássicos perante as duras exigências físicas das redes 6G. A sobreposição de imperfeições não-lineares, consubstanciada na saturação do HPA em modulações densas (16-QAM), aliada à constante imprecisão das estimativas de CSI devido à hipermobilidade veicular, impulsiona o colapso dos equalizadores lineares \textit{Zero-Forcing} e agrava drasticamente o decaimento em detectores determinísticos de Máxima Verossimilhança (ML). 
+
+A consolidação de uma arquitetura de Segurança de Camada Física (PLS) enraizada no emprego de Redes Neurais Profundas demonstrou prover resolução metodológica definitiva para os impasses analíticos de canal fechado. Testes rigorosos constataram a equivalência operacional do \textit{Soft-Demapping} neural perante limites de detecção ótimos, assim como evidenciaram a expressiva superioridade de classificação do modelo de IA em faixas de alta incerteza estocástica. Comprovou-se empiricamente que os ganhos de decodificação alcançados não apenas mitigam os ruídos do hardware legitimo, mas são suficientes para suportar de forma incondicional os protocolos primários de FEC, empurrando o receptor legítimo à confiabilidade total enquanto prende adversários passivos à cegueira estocástica irreversível.
+
+Como desenvolvimentos futuros em segurança rádio-cognitiva, projetam-se as seguintes linhas de investigação:
 \begin{itemize}
-    \item \textbf{Abdel Hakeem et al. (2022):} Security Requirements and Challenges of 6G Technologies and Applications. \\ \url{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9322055/}
-
-    \item \textbf{Ma et al. (2021):} Intelligent Zero Trust Architecture for 5G/6G Networks. \\ \url{https://arxiv.org/abs/2105.01478}
-
-    \item \textbf{Olimid \& Nencioni (2020):} 5G Network Slicing: A Security Overview. \\ \url{https://ieeexplore.ieee.org/document/9098253}
-
-    \item \textbf{Yang et al. (2020):} Artificial-Intelligence-Enabled Intelligent 6G Networks. \\ \url{https://fardapaper.ir/mohavaha/uploads/2023/02/Fardapaper-Artificial-Intelligence-Enabled-Intelligent-6G-Networks.pdf}
+    \item \textbf{Expansão para Matrizes Massivas (MIMO):} Avaliação sistêmica dos limites térmicos e da compensação espacial de redes neurais na gestão de interferências mútuas e deficiências de amplificação AM/AM correlacionadas sob operação \textit{beamforming}.
+    \item \textbf{Complexidade Temporal (Série de Volterra):} Incorporação de arquiteturas neurais recorrentes focadas na compensação avançada de ISI provocada pelos efeitos de memória intrínsecos de circuitos de radiofrequência operando em ultra-banda-larga.
+    \item \textbf{Resiliência Contra Adversários Ativos:} Stress testes estruturais envolvendo ataques de \textit{Smart Jamming} visando envenenar diretamente o modelo cognitivo, simulando adulterações intencionais dos pilotos das sondagens de CSI (\textit{Spoofing}) no ambiente V2X.
 \end{itemize}
-% --- FIM DAS REFERÊNCIAS ADICIONAIS ---
+
+\bibliographystyle{ieeetr}
+\bibliography{referencias}
 
 \end{document}
